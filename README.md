@@ -289,7 +289,6 @@ Run: `cd packages/shared && npm run build`
 - File uploads with encryption
 - Group chats
 - Real-time notifications via Socket.IO
-- Voice messages
 - Custom themes
 - Profile pictures
 - Friend system

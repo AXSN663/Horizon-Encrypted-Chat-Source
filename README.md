@@ -17,6 +17,7 @@ cd Chat
 
 ### Step 2: Install all dependencies
 ```bash
+cd packages
 npm install
 ```
 

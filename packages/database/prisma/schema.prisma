@@ -1,0 +1,221 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id        String   @id @default(uuid())
+  username  String   @unique
+  email     String?
+  password  String
+  publicKey String
+  pfpUrl    String?
+  status    String   @default("ONLINE")
+  customStatus String?
+  tokenVersion Int    @default(0)
+  primaryColor   String   @default("#0f172a")
+  secondaryColor String   @default("#1e293b")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  messages     Message[]
+  rooms        RoomMember[]
+  ownedRooms   Room[]
+  sentFiles    File[]
+  friendships  Friendship[] @relation("UserFriendships")
+  friendOf     Friendship[] @relation("FriendFriendships")
+  sentRequests     FriendRequest[] @relation("SentRequests")
+  receivedRequests FriendRequest[] @relation("ReceivedRequests")
+  ownedServers Server[]
+  serverMemberships ServerMember[]
+  blockedUsers BlockedUser[] @relation("UserBlocks")
+  blockedBy    BlockedUser[] @relation("UserBlockedBy")
+  notifications Notification[]
+  revokedTokens RevokedToken[]
+  
+  @@map("users")
+}
+
+model RevokedToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  createdAt DateTime @default(now())
+  
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("revoked_tokens")
+}
+
+model Friendship {
+  id        String   @id @default(uuid())
+  userId    String
+  friendId  String
+  createdAt DateTime @default(now())
+  
+  user      User     @relation("UserFriendships", fields: [userId], references: [id], onDelete: Cascade)
+  friend    User     @relation("FriendFriendships", fields: [friendId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, friendId])
+  @@map("friendships")
+}
+
+model FriendRequest {
+  id         String   @id @default(uuid())
+  senderId   String
+  receiverId String
+  status     String   @default("PENDING")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  
+  sender     User     @relation("SentRequests", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver   User     @relation("ReceivedRequests", fields: [receiverId], references: [id], onDelete: Cascade)
+  
+  @@unique([senderId, receiverId])
+  @@map("friend_requests")
+}
+
+model Server {
+  id          String   @id @default(uuid())
+  name        String
+  iconUrl     String?
+  ownerId     String
+  inviteCode  String   @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  owner       User       @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  members     ServerMember[]
+  channels    Channel[]
+  
+  @@map("servers")
+}
+
+model ServerMember {
+  id        String   @id @default(uuid())
+  serverId  String
+  userId    String
+  role      String   @default("MEMBER")
+  joinedAt  DateTime @default(now())
+  
+  server    Server   @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([serverId, userId])
+  @@map("server_members")
+}
+
+model Channel {
+  id          String   @id @default(uuid())
+  name        String
+  type        String   @default("TEXT")
+  serverId    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  server      Server   @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  messages    Message[]
+  
+  @@map("channels")
+}
+
+model Room {
+  id         String   @id @default(uuid())
+  name       String
+  type       String   @default("DM")
+  ownerId    String?
+  groupImage String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  
+  owner     User?    @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  members   RoomMember[]
+  messages  Message[]
+  
+  @@map("rooms")
+}
+
+model RoomMember {
+  id        String   @id @default(uuid())
+  userId    String
+  roomId    String
+  joinedAt  DateTime @default(now())
+  
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, roomId])
+  @@map("room_members")
+}
+
+model Message {
+  id            String    @id @default(uuid())
+  content       String
+  encryptedKey  String
+  iv            String?
+  senderId      String
+  roomId        String?
+  channelId     String?
+  fileUrl       String?
+  fileName      String?
+  fileType      String?
+  selfDestruct  DateTime?
+  isDeleted     Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  
+  sender        User      @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  room          Room?     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  channel       Channel?  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  
+  @@map("messages")
+}
+
+model File {
+  id          String   @id @default(uuid())
+  filename    String
+  originalName String
+  mimeType    String
+  size        Int
+  encryptedKey String
+  senderId    String
+  createdAt   DateTime @default(now())
+  
+  sender      User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  
+  @@map("files")
+}
+
+model BlockedUser {
+  id         String   @id @default(uuid())
+  blockerId  String
+  blockedId  String
+  createdAt  DateTime @default(now())
+  
+  blocker    User     @relation("UserBlocks", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked    User     @relation("UserBlockedBy", fields: [blockedId], references: [id], onDelete: Cascade)
+  
+  @@unique([blockerId, blockedId])
+  @@map("blocked_users")
+}
+
+model Notification {
+  id          String   @id @default(uuid())
+  userId      String
+  type        String   // 'message', 'friend_request', 'group_invite'
+  title       String
+  content     String?
+  senderId    String?
+  roomId      String?
+  requestId   String?
+  isRead      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId, isRead])
+  @@map("notifications")
+}
